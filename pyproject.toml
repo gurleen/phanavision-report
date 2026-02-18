@@ -1,0 +1,17 @@
+[project]
+name = "phanavision-report"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "dash>=4.0.0",
+    "dash-ag-grid>=33.3.3",
+    "gunicorn>=23.0.0",
+    "ipykernel>=7.2.0",
+    "polars==1.35.*",
+    "pybaseball>=2.2.7",
+]
+
+[project.scripts]
+phanavision-etl = "etl:main"
