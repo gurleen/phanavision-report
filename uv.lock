@@ -1355,6 +1355,7 @@ dependencies = [
     { name = "loguru" },
     { name = "polars" },
     { name = "pybaseball" },
+    { name = "tqdm" },
 ]
 
 [package.metadata]
@@ -1366,6 +1367,7 @@ requires-dist = [
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "polars", specifier = "==1.35.*" },
     { name = "pybaseball", specifier = ">=2.2.7" },
+    { name = "tqdm", specifier = ">=4.67.3" },
 ]
 
 [[package]]

@@ -12,6 +12,7 @@ dependencies = [
     "loguru>=0.7.3",
     "polars==1.35.*",
     "pybaseball>=2.2.7",
+    "tqdm>=4.67.3",
 ]
 
 [project.scripts]
