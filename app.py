@@ -61,7 +61,7 @@ TAB_CONTENT_BY_VALUE = {
     "statcast-ranks": render_statcast_ranks,
 }
 
-app = Dash(__name__, title="phanavision-report")
+app = Dash(__name__, title="phanavision-report", suppress_callback_exceptions=True)
 server = app.server
 
 app.layout = html.Div(
@@ -215,7 +215,6 @@ def render_tab_content(selected_tab: str, selected_player_pk: int | None):
     if tab_renderer is None:
         return html.Div()
     return tab_renderer(selected_player_pk)
-
 
 if __name__ == "__main__":
     app.run(debug=True)

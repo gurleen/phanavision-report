@@ -1,3 +1,4 @@
+from typing import Literal
 from dash import dcc, html
 import dash_ag_grid as dag
 import polars as pl
@@ -5,6 +6,7 @@ import polars as pl
 CAREER_HR_MAX = pl.scan_parquet("output/hr_report.parquet").drop("player_name")
 SEASON_HR_MAX = pl.scan_parquet("output/hr_report_by_season.parquet").drop("player_name")
 STATCAST_2025 = pl.scan_parquet("inputs/statcast_2025.parquet")
+GAME_EVENTS = pl.scan_parquet("output/game_events.parquet")
 PITCHER_LOOKUP = (
 	pl.scan_parquet("output/player_lookup.parquet")
 	.select("player_pk", "first_name", "last_name")
@@ -16,6 +18,10 @@ PITCHER_LOOKUP = (
 	)
 	.select("player_pk", "pitcher_name")
 )
+
+
+def _fetch_play_video_url(play_guid: str, feed: Literal["home", "away"]) -> str:
+	return f"https://baseballsavant.mlb.com/sporty-videos?playId={play_guid}&feed={feed}&videoType={feed.upper()}"
 
 
 def _interpolate_color(ratio: float) -> str:
@@ -82,12 +88,20 @@ def _render_all_hrs_grid(player_pk: int):
 			pl.col("events").eq("home_run"),
 			pl.col("batter").eq(player_pk),
 		)
+		.with_columns((pl.col("at_bat_number") - 1).alias("event_at_bat_index"))
+		.join(
+			GAME_EVENTS,
+			left_on=["game_pk", "event_at_bat_index", "pitch_number"],
+			right_on=["game_pk", "at_bat_number", "pitch_number"],
+			how="left",
+		)
 		.join(PITCHER_LOOKUP, left_on="pitcher", right_on="player_pk", how="left")
 		.with_columns(
 			pl.coalesce([pl.col("pitcher_name"), pl.col("pitcher").cast(pl.Utf8)]).alias("pitcher_name"),
 			pl.col("estimated_woba_using_speedangle").round(3)
 		)
 		.select(
+			"play_id",
 			"game_date",
 			"game_pk",
 			"bat_team",
@@ -108,6 +122,14 @@ def _render_all_hrs_grid(player_pk: int):
 		.sort("game_date")
 		.to_dicts()
 	)
+
+	for row in all_hrs_rows:
+		play_id = row.get("play_id")
+		if play_id is None:
+			row["open_play"] = "—"
+			continue
+		play_url = _fetch_play_video_url(str(play_id), "home")
+		row["open_play"] = f"<a href=\"{play_url}\" target=\"_blank\" rel=\"noopener noreferrer\">🎬</a>"
 
 	if not all_hrs_rows:
 		return html.Div("No home run events available for this player.")
@@ -147,7 +169,18 @@ def _render_all_hrs_grid(player_pk: int):
 		"estimated_woba_using_speedangle",
 	}
 	column_defs = [
-		(
+		{
+			"field": "open_play",
+			"headerName": "",
+			"width": 42,
+			"sortable": False,
+			"filter": False,
+			"resizable": False,
+			"pinned": "left",
+			"cellStyle": {"textAlign": "center", "cursor": "pointer"},
+			"cellRenderer": "markdown",
+		},
+		*[
 			{
 				"field": col,
 				"headerName": header_names[col],
@@ -158,14 +191,15 @@ def _render_all_hrs_grid(player_pk: int):
 					else {}
 				),
 			}
-		)
-		for col in column_order
+			for col in column_order
+		],
 	]
 
 	return dag.AgGrid(
 		id="all-hrs-grid",
 		columnDefs=column_defs,
 		rowData=all_hrs_rows,
+		dangerously_allow_code=True,
 		defaultColDef={"sortable": True, "filter": True, "resizable": True, "minWidth": 72, "maxWidth": 120},
 		getRowStyle={
 			"styleConditions": [
