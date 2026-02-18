@@ -177,7 +177,7 @@ def render_player_details(selected_player_pk: int | None):
                                         html.Th("Active", style={"textAlign": "left", "paddingRight": "1rem", "border": "1px solid currentColor"}),
                                         html.Td("Yes" if player["active"] else "No", style={"border": "1px solid currentColor"}),
                                     ],
-                                    style={"backgroundColor": "#f7f7f7"},
+                                    style={"backgroundColor": "#f7f7f7 "},
                                 ),
                                 html.Tr(
                                     [
@@ -218,4 +218,4 @@ def render_tab_content(selected_tab: str, selected_player_pk: int | None):
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True)

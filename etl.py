@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 
 import polars as pl
+from loguru import logger
 
 
 DROP_COLS = [
@@ -43,6 +44,7 @@ def ensure_parent_dir(file_path: Path) -> None:
 def build_player_lookup(inputs_dir: Path, lookup_output: Path) -> None:
     source = inputs_dir / "player_id_map.parquet"
     ensure_parent_dir(lookup_output)
+    logger.info("Building player lookup from {} -> {}", source, lookup_output)
 
     (
         pl.scan_parquet(source)
@@ -69,10 +71,12 @@ def build_player_lookup(inputs_dir: Path, lookup_output: Path) -> None:
         )
         .sink_parquet(lookup_output, engine="streaming")
     )
+    logger.success("Wrote {}", lookup_output)
 
 
 def build_hr_reports(inputs_dir: Path, lookup_output: Path, output_dir: Path) -> None:
     source = inputs_dir / "statcast_era_batted_balls.parquet"
+    logger.info("Building HR reports from {}", source)
     player_lookup = pl.scan_parquet(lookup_output).select("player_pk", "player_name").unique()
 
     bb_df = (
@@ -124,6 +128,7 @@ def build_hr_reports(inputs_dir: Path, lookup_output: Path, output_dir: Path) ->
         .sort("hr_count", descending=True)
         .sink_parquet(hr_by_season_output, engine="streaming")
     )
+    logger.success("Wrote {}", hr_by_season_output)
 
     (
         bb_df
@@ -136,9 +141,11 @@ def build_hr_reports(inputs_dir: Path, lookup_output: Path, output_dir: Path) ->
         .sort("hr_count", descending=True)
         .sink_parquet(hr_output, engine="streaming")
     )
+    logger.success("Wrote {}", hr_output)
 
 
 def build_batter_report_2025(inputs_dir: Path, output_dir: Path) -> None:
+    logger.info("Building 2025 batter report from {}/statcast_2025.parquet", inputs_dir)
     statcast_2025 = pl.scan_parquet(inputs_dir / "statcast_2025.parquet")
     player_map = (
         pl.scan_parquet(inputs_dir / "player_id_map.parquet")
@@ -200,6 +207,7 @@ def build_batter_report_2025(inputs_dir: Path, output_dir: Path) -> None:
         .drop_nulls()
         .write_parquet(report_output)
     )
+    logger.success("Wrote {}", report_output)
 
 
 def parse_args() -> argparse.Namespace:
@@ -232,6 +240,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    logger.info(
+        "Starting ETL command={} inputs_dir={} output_dir={} lookup_output={}",
+        args.command,
+        args.inputs_dir,
+        args.output_dir,
+        args.lookup_output,
+    )
 
     if args.command in {"player-lookup", "all"}:
         build_player_lookup(args.inputs_dir, args.lookup_output)
@@ -243,6 +258,8 @@ def main() -> None:
 
     if args.command in {"batter-report", "all"}:
         build_batter_report_2025(args.inputs_dir, args.output_dir)
+
+    logger.success("ETL command '{}' completed", args.command)
 
 
 if __name__ == "__main__":
